@@ -54,6 +54,8 @@ data EXTLANG where
   AppX :: EXTLANG -> EXTLANG -> EXTLANG
   BindX :: String  -> TYPELANG -> EXTLANG -> EXTLANG -> EXTLANG
   FixX :: EXTLANG->EXTLANG
+  WhileX :: String -> TYPELANG -> EXTLANG-> EXTLANG -> EXTLANG ->EXTLANG
+  FactX :: EXTLANG->EXTLANG
   deriving (Show,Eq)
 
 
@@ -173,10 +175,25 @@ elabTerm (LambdaX i d b) = (Lambda i d (elabTerm b))
 elabTerm (AppX l r) = (App(elabTerm l) (elabTerm r))
 elabTerm (FixX t) = (Fix (elabTerm t))
 elabTerm(BindX i d v b)=(App (Lambda i d (elabTerm b)) (elabTerm v))
+elabTerm(WhileX i d v c b)=(elabTerm( BindX "f" ((:->:) TNum TNum) (LambdaX "g" ((:->:) TNum TNum) (LambdaX i TNum (IfX  (c) (AppX(IdX "g")(b)) (NumX 0)))) (AppX (FixX (IdX "f"))  (v))))
+elabTerm(FactX m) =(elabTerm(BindX "f" ((:->:) TNum TNum) (LambdaX "g" ((:->:) TNum TNum) (LambdaX "x" TNum (IfX (IsZeroX (IdX "x")) (NumX 1) (MultX (IdX "x") (AppX (IdX "g") (MinusX (IdX "x") (NumX 1))))))) (AppX (FixX (IdX "f")) (m))))
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 evalTerm :: ValueEnv -> EXTLANG -> (Maybe VALUELANG)
 evalTerm e f = evalM e (elabTerm f)
+
 
 main :: IO()
 main = do
@@ -190,4 +207,8 @@ main = do
                                                                     (MinusX (IdX "x")
                                                                           (NumX 1)))))))
                          (AppX (FixX (IdX "f")) (NumX 5))))
+
+
+
+
        

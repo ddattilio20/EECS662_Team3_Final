@@ -1,18 +1,28 @@
 typeofM[("n",(TNum))](App(Lambda "x" TNum (Plus(Id "x")(Id "n")))(Num 4))
 evalM [("n",(NumV 3))] (App(Lambda "x" TNum (Plus(Id "x")(Id "n")))(Num 4))
 evalM [("x",(NumV 4)),("y", NumV 4),("b", (BoolV False))] (If (Id "b") (Mult(Id "x")(Id "y")) (Minus(Id "x")(Id "y")))
-
+evalTerm [("x",(NumV 4)),("y", NumV 4),("b", (BoolV False))] (IfX (IdX "b") (MultX(IdX "x")(IdX "y")) (MinusX(IdX "x")(IdX "y")))
 typeofM g (Bind i v b) = do { (v') <- (typeofM g v);
                               (typeofM ((i,v'):g) b)}
 evalM e (Bind i v b) = do{ (v') <- (evalM e v);
                            (evalM ((i,v'):e) b)}
 
 
+(elabTerm BindX "f" ((:->:) TNum TNum) (Lambda "g" ((:->:) TNum TNum) (Lambda "x" TNum (If (elabTerm c) (elabTerm b) (Num 0)))) (App (Fix (Id "f")) (elabTerm v)))
 
- print ( evalM [] (Bind "f" (Lambda "g" ((:->:) TNum TNum)
-                                    (Lambda "x" TNum (If (IsZero (Id "x")) (Num 1)
-                                                        (Mult (Id "x")
-                                                              (App (Id "g")
-                                                                    (Minus (Id "x")
-                                                                          (Num 1)))))))
-                         (App (Fix (Id "f")) (Num 5))))
+
+main :: IO()
+main = do
+        print (typeofM[("n",(TNum))](App(Lambda "x" TNum (Plus(Id "x")(Id "n")))(Num 4)))
+        print (evalM [("n",(NumV 3))] (App(Lambda "x" TNum (Plus(Id "x")(Id "n")))(Num 4)))
+        print (evalM [("x",(NumV 4)),("y", NumV 4),("b", (BoolV False))] (If (Id "b") (Mult(Id "x")(Id "y")) (Minus(Id "x")(Id "y"))))
+        print ( evalTerm [] (BindX "f" ((:->:) TNum TNum) (LambdaX "g" ((:->:) TNum TNum)
+                                    (LambdaX "x" TNum (IfX (IsZeroX (IdX "x")) (NumX 1)
+                                                        (MultX (IdX "x")
+                                                              (AppX (IdX "g")
+                                                                    (MinusX (IdX "x")
+                                                                          (NumX 1)))))))
+                         (AppX (FixX (IdX "f")) (NumX 5))))
+
+
+                           (App(Fix(Lambda i  d (If (elabTerm c)(elabTerm b) (Num 0))))(elabTerm v))
