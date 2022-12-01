@@ -3,10 +3,10 @@
 
 -- AST and Type Definitions
 data TYPELANG where 
-	TNum :: TYPELANG
-	TBool :: TYPELANG
-	(:->:) :: TYPELANG->TYPELANG->TYPELANG
-	deriving (Show,Eq)
+  TNum :: TYPELANG
+  TBool :: TYPELANG
+  (:->:) :: TYPELANG->TYPELANG->TYPELANG
+  deriving (Show,Eq)
 data VALUELANG where
   NumV :: Int -> VALUELANG
   ClosureV :: String -> TERMLANG -> ValueEnv -> VALUELANG
@@ -18,21 +18,21 @@ type Cont = [(String,TYPELANG)]
 type ValueEnv = [(String,VALUELANG)]
 
 data TERMLANG where
-  			 Num :: Int -> TERMLANG
-  			 Id :: String -> TERMLANG
-  			 Plus :: TERMLANG -> TERMLANG -> TERMLANG
- 			 Minus :: TERMLANG -> TERMLANG -> TERMLANG
-  			 Mult :: TERMLANG -> TERMLANG -> TERMLANG
-  			 Div :: TERMLANG -> TERMLANG -> TERMLANG
-  			 Boolean :: Bool -> TERMLANG
-  			 And :: TERMLANG -> TERMLANG -> TERMLANG
-  			 Or :: TERMLANG -> TERMLANG -> TERMLANG
-  			 Leq :: TERMLANG -> TERMLANG -> TERMLANG
-  			 IsZero :: TERMLANG->TERMLANG
-  			 If :: 	TERMLANG-> TERMLANG-> TERMLANG-> TERMLANG
-  			 Lambda :: String -> TERMLANG -> TERMLANG
-  			 App :: TERMLANG -> TERMLANG -> TERMLANG
-  			 deriving (Show,Eq)
+  Num :: Int -> TERMLANG
+  Id :: String -> TERMLANG
+  Plus :: TERMLANG -> TERMLANG -> TERMLANG
+  Minus :: TERMLANG -> TERMLANG -> TERMLANG
+  Mult :: TERMLANG -> TERMLANG -> TERMLANG
+  Div :: TERMLANG -> TERMLANG -> TERMLANG
+  Boolean :: Bool -> TERMLANG
+  And :: TERMLANG -> TERMLANG -> TERMLANG
+  Or :: TERMLANG -> TERMLANG -> TERMLANG
+  Leq :: TERMLANG -> TERMLANG -> TERMLANG
+  IsZero :: TERMLANG->TERMLANG
+  If :: TERMLANG-> TERMLANG-> TERMLANG-> TERMLANG
+  Lambda :: String -> TYPELANG -> TERMLANG ->TERMLANG
+  App :: TERMLANG -> TERMLANG -> TERMLANG
+  deriving (Show,Eq)
 
 
 typeofM :: Cont -> TERMLANG -> (Maybe TYPELANG)
@@ -67,8 +67,8 @@ typeofM g (If c t e) = do {TBool <- typeofM g c;
                              e' <- typeofM g e;
                              if t' == e' then return t' else Nothing}
 
-typeof g (Lambda i d b) = do {r <- typeof (i,d):g b;
-                              return d :->: r}
-typeof g (App f a) = do { a' <- typeof g a;
-                          d :->: r <- typeof g f;
+typeofM g (Lambda i d b) = do {r <- typeofM ((i,d):g) b;
+                              return (d:->:r)}
+typeofM g (App f a) = do { a' <- typeofM g a;
+                          (d:->:r) <- typeofM g f;
                           if a'==d then return r else Nothing}
