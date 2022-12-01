@@ -10,6 +10,7 @@ evalM e (Bind i v b) = do{ (v') <- (evalM e v);
 
 (elabTerm BindX "f" ((:->:) TNum TNum) (Lambda "g" ((:->:) TNum TNum) (Lambda "x" TNum (If (elabTerm c) (elabTerm b) (Num 0)))) (App (Fix (Id "f")) (elabTerm v)))
 
+evalTerm[("i",NumV 3)](WhileX "i" TNum (NumX 3)(LeqX(IdX "i")(NumX 6))(PlusX(IdX "i")(NumX 1)))
 
 main :: IO()
 main = do
