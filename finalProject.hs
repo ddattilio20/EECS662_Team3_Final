@@ -33,8 +33,28 @@ data TERMLANG where
   If :: TERMLANG-> TERMLANG-> TERMLANG-> TERMLANG
   Lambda :: String -> TYPELANG -> TERMLANG ->TERMLANG
   App :: TERMLANG -> TERMLANG -> TERMLANG
+  Fix :: TERMLANG -> TERMLANG
+  Bind :: String -> TERMLANG -> TERMLANG -> TERMLANG
   deriving (Show,Eq)
 
+
+-- substitution
+subst :: String -> TERMLANG -> TERMLANG -> TERMLANG
+subst i v (Num x) = (Num x)
+subst i v (Id id) = if i==id then v else (Id id)
+subst i v (Plus l r) = (Plus (subst i v l) (subst i v r))
+subst i v (Minus l r) = (Minus (subst i v l) (subst i v r))
+subst i v (Mult l r) = (Mult (subst i v l) (subst i v r))
+subst i v (Div l r) = (Div (subst i v l) (subst i v r))
+subst i v (Boolean b) = (Boolean b)
+subst i v (And l r) = (And (subst i v l) (subst i v r))
+subst i v (Or l r) = (Or (subst i v l) (subst i v r))
+subst i v (Leq l r) = (Leq (subst i v l) (subst i v r))
+subst i v (IsZero v') = (IsZero (subst i v v'))
+subst i v (If c t e) = (If (subst i v c) (subst i v t) ( subst i v e))
+subst i v (Lambda i' t b) = (Lambda i' t (subst i v b))
+subst i v (App f a) = (App (subst i v f) (subst i v a))
+subst i v (Fix f) = (Fix (subst i v f))
 
 typeofM :: Cont -> TERMLANG -> (Maybe TYPELANG)
 typeofM g (Num n) = if n>=0 then return TNum else Nothing
@@ -73,6 +93,10 @@ typeofM g (Lambda i d b) = do {r <- typeofM ((i,d):g) b;
 typeofM g (App f a) = do { a' <- typeofM g a;
                           (d:->:r) <- typeofM g f;
                           if a'==d then return r else Nothing}
+typeofM g (Fix t) = do { (d :->: r) <- (typeofM g t);
+                         return r}
+typeofM g (Bind i v b) = do { (v') <- (typeofM g v);
+                              (typeofM ((i,v'):g) b)}
 
 
 evalM :: ValueEnv -> TERMLANG -> (Maybe VALUELANG)
@@ -109,9 +133,21 @@ evalM e (Lambda i d b) = Just (ClosureV i b e)
 evalM e (App f a) = do{ (ClosureV i b e) <- (evalM e f);
                         (a') <- (evalM e a);
                         (evalM ((i,a'):e) b)}
+evalM e (Fix t) = do{ (ClosureV i b e') <- (evalM e t);
+                      (t') <- (Just TNum);
+                      (evalM e' (subst i (Fix (Lambda i t' b)) b))}
+evalM e (Bind i v b) = do{ (v') <- (evalM e v);
+                           (evalM ((i,v'):e) b)}
 
 main :: IO()
 main = do
         print (typeofM[("n",(TNum))](App(Lambda "x" TNum (Plus(Id "x")(Id "n")))(Num 4)))
         print (evalM [("n",(NumV 3))] (App(Lambda "x" TNum (Plus(Id "x")(Id "n")))(Num 4)))
         print (evalM [("x",(NumV 4)),("y", NumV 4),("b", (BoolV False))] (If (Id "b") (Mult(Id "x")(Id "y")) (Minus(Id "x")(Id "y"))))
+        print ( evalM [] (Bind "f" (Lambda "g" ((:->:) TNum TNum)
+                                    (Lambda "x" TNum (If (IsZero (Id "x")) (Num 1)
+                                                        (Mult (Id "x")
+                                                              (App (Id "g")
+                                                                    (Minus (Id "x")
+                                                                          (Num 1)))))))
+                         (App (Fix (Id "f")) (Num 5))))
