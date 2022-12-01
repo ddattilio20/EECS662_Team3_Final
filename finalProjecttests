@@ -1,3 +1,18 @@
 typeofM[("n",(TNum))](App(Lambda "x" TNum (Plus(Id "x")(Id "n")))(Num 4))
 evalM [("n",(NumV 3))] (App(Lambda "x" TNum (Plus(Id "x")(Id "n")))(Num 4))
 evalM [("x",(NumV 4)),("y", NumV 4),("b", (BoolV False))] (If (Id "b") (Mult(Id "x")(Id "y")) (Minus(Id "x")(Id "y")))
+
+typeofM g (Bind i v b) = do { (v') <- (typeofM g v);
+                              (typeofM ((i,v'):g) b)}
+evalM e (Bind i v b) = do{ (v') <- (evalM e v);
+                           (evalM ((i,v'):e) b)}
+
+
+
+ print ( evalM [] (Bind "f" (Lambda "g" ((:->:) TNum TNum)
+                                    (Lambda "x" TNum (If (IsZero (Id "x")) (Num 1)
+                                                        (Mult (Id "x")
+                                                              (App (Id "g")
+                                                                    (Minus (Id "x")
+                                                                          (Num 1)))))))
+                         (App (Fix (Id "f")) (Num 5))))

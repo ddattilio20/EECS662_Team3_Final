@@ -10,7 +10,7 @@ data TYPELANG where
 data VALUELANG where
   NumV :: Int -> VALUELANG
   BoolV :: Bool -> VALUELANG
-  ClosureV :: String -> TERMLANG -> ValueEnv -> VALUELANG
+  ClosureV :: String -> TYPELANG ->TERMLANG -> ValueEnv -> VALUELANG
   deriving (Show,Eq)
 
 
@@ -34,7 +34,26 @@ data TERMLANG where
   Lambda :: String -> TYPELANG -> TERMLANG ->TERMLANG
   App :: TERMLANG -> TERMLANG -> TERMLANG
   Fix :: TERMLANG -> TERMLANG
-  Bind :: String -> TERMLANG -> TERMLANG -> TERMLANG
+  deriving (Show,Eq)
+
+ 
+data EXTLANG where
+  NumX :: Int -> EXTLANG
+  IdX :: String -> EXTLANG
+  PlusX :: EXTLANG -> EXTLANG -> EXTLANG
+  MinusX :: EXTLANG -> EXTLANG -> EXTLANG
+  MultX :: EXTLANG -> EXTLANG -> EXTLANG
+  DivX :: EXTLANG -> EXTLANG -> EXTLANG
+  BooleanX :: Bool -> EXTLANG
+  AndX :: EXTLANG -> EXTLANG -> EXTLANG
+  OrX :: EXTLANG -> EXTLANG -> EXTLANG
+  LeqX :: EXTLANG -> EXTLANG -> EXTLANG
+  IsZeroX :: EXTLANG->EXTLANG
+  IfX :: EXTLANG -> EXTLANG -> EXTLANG -> EXTLANG
+  LambdaX :: String -> TYPELANG->EXTLANG -> EXTLANG
+  AppX :: EXTLANG -> EXTLANG -> EXTLANG
+  BindX :: String  -> TYPELANG -> EXTLANG -> EXTLANG -> EXTLANG
+  FixX :: EXTLANG->EXTLANG
   deriving (Show,Eq)
 
 
@@ -95,13 +114,11 @@ typeofM g (App f a) = do { a' <- typeofM g a;
                           if a'==d then return r else Nothing}
 typeofM g (Fix t) = do { (d :->: r) <- (typeofM g t);
                          return r}
-typeofM g (Bind i v b) = do { (v') <- (typeofM g v);
-                              (typeofM ((i,v'):g) b)}
 
 
 evalM :: ValueEnv -> TERMLANG -> (Maybe VALUELANG)
-evalM e (Num x) = Just (NumV x)
-evalM e (Id id) = lookup id e
+evalM e (Num n) = if n<0 then Nothing else Just (NumV n)
+evalM e (Id i) = (lookup i e)
 evalM e (Plus l r) = do{ (NumV l') <- (evalM e l);
                          (NumV r') <- (evalM e r);
                          return (NumV (l' + r'))}
@@ -129,25 +146,48 @@ evalM e (IsZero v) = do{ (NumV v') <- (evalM e v);
                           return (BoolV (v'==0))}
 evalM e (If c t e') = do{ (BoolV c') <- (evalM e c);
                          (if c' then (evalM e t) else (evalM e e'))}
-evalM e (Lambda i d b) = Just (ClosureV i b e)
-evalM e (App f a) = do{ (ClosureV i b e) <- (evalM e f);
+evalM e (Lambda i d b) = Just (ClosureV i d b e)
+evalM e (App f a) = do{ (ClosureV i d b e) <- (evalM e f);
                         (a') <- (evalM e a);
                         (evalM ((i,a'):e) b)}
-evalM e (Fix t) = do{ (ClosureV i b e') <- (evalM e t);
-                      (t') <- (Just TNum);
-                      (evalM e' (subst i (Fix (Lambda i t' b)) b))}
-evalM e (Bind i v b) = do{ (v') <- (evalM e v);
-                           (evalM ((i,v'):e) b)}
+evalM e (Fix t) = do{ (ClosureV i d b e') <- (evalM e t);
+                      (evalM e' (subst i (Fix (Lambda i d b)) b))}
+
+
+
+
+elabTerm :: EXTLANG -> TERMLANG
+elabTerm (NumX n) = (Num n)
+elabTerm(IdX i)= (Id i)
+elabTerm (PlusX l r) = (Plus (elabTerm l) (elabTerm r))
+elabTerm (MinusX l r) = (Minus (elabTerm l) (elabTerm r))
+elabTerm (MultX l r) = (Mult (elabTerm l) (elabTerm r))
+elabTerm (DivX l r) = (Div (elabTerm l) (elabTerm r))
+elabTerm (BooleanX b)= (Boolean b)
+elabTerm (AndX l r) = (And (elabTerm l) (elabTerm r))
+elabTerm (OrX l r) = (Or (elabTerm l) (elabTerm r))
+elabTerm (LeqX l r) = (Leq (elabTerm l) (elabTerm r))
+elabTerm (IsZeroX v) = (IsZero(elabTerm v))
+elabTerm (IfX c t n) = (If (elabTerm c)(elabTerm t) (elabTerm n))
+elabTerm (LambdaX i d b) = (Lambda i d (elabTerm b))
+elabTerm (AppX l r) = (App(elabTerm l) (elabTerm r))
+elabTerm (FixX t) = (Fix (elabTerm t))
+elabTerm(BindX i d v b)=(App (Lambda i d (elabTerm b)) (elabTerm v))
+
+
+evalTerm :: ValueEnv -> EXTLANG -> (Maybe VALUELANG)
+evalTerm e f = evalM e (elabTerm f)
 
 main :: IO()
 main = do
         print (typeofM[("n",(TNum))](App(Lambda "x" TNum (Plus(Id "x")(Id "n")))(Num 4)))
         print (evalM [("n",(NumV 3))] (App(Lambda "x" TNum (Plus(Id "x")(Id "n")))(Num 4)))
         print (evalM [("x",(NumV 4)),("y", NumV 4),("b", (BoolV False))] (If (Id "b") (Mult(Id "x")(Id "y")) (Minus(Id "x")(Id "y"))))
-        print ( evalM [] (Bind "f" (Lambda "g" ((:->:) TNum TNum)
-                                    (Lambda "x" TNum (If (IsZero (Id "x")) (Num 1)
-                                                        (Mult (Id "x")
-                                                              (App (Id "g")
-                                                                    (Minus (Id "x")
-                                                                          (Num 1)))))))
-                         (App (Fix (Id "f")) (Num 5))))
+        print ( evalTerm [] (BindX "f" ((:->:) TNum TNum) (LambdaX "g" ((:->:) TNum TNum)
+                                    (LambdaX "x" TNum (IfX (IsZeroX (IdX "x")) (NumX 1)
+                                                        (MultX (IdX "x")
+                                                              (AppX (IdX "g")
+                                                                    (MinusX (IdX "x")
+                                                                          (NumX 1)))))))
+                         (AppX (FixX (IdX "f")) (NumX 5))))
+       
